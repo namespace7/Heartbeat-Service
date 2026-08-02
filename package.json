@@ -1,0 +1,16 @@
+{
+  "name": "heartbeat-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js"
+  },
+  "keywords": [],
+  "author": "Yashwant Kumar",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.19.0"
+  }
+}
