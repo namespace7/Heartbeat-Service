@@ -81,7 +81,7 @@ heartbeat-service
 Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/heartbeat-service.git
+git clone https://github.com/namespace7/heartbeat-service.git
 ```
 
 Install dependencies
