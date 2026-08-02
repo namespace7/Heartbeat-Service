@@ -1,8 +1,10 @@
 const axios = require("axios");
 
+const REQUEST_TIMEOUT = 60000;
+
 const ping = async (service) => {
   const start = Date.now();
-  const timeout = service.timeout || 15000;
+  const timeout = service.timeout || REQUEST_TIMEOUT;
 
   try {
     const response = await axios.get(service.url, {

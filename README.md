@@ -113,20 +113,22 @@ Example
   {
     "name": "Portfolio",
     "url": "https://landing-page-nrjv.onrender.com",
-    "timeout": 15000
+    "timeout": 60000
   },
   {
     "name": "Three-Way Match Engine Frontend",
     "url": "https://three-way-match-engine-frontend.onrender.com",
-    "timeout": 15000
+    "timeout": 60000
   },
   {
     "name": "Three-Way Match Engine Backend",
     "url": "https://three-way-match-engine-backend.onrender.com",
-    "timeout": 15000
+    "timeout": 60000
   }
 ]
 ```
+
+> **Note:** The default request timeout (`REQUEST_TIMEOUT`) is intentionally set to 60 seconds (60,000 ms) to accommodate controlled experimentation with Render free-tier cold starts, which can occasionally take up to 30–50 seconds to spin up from an idle state.
 
 ---
 
