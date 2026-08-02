@@ -1,27 +1,32 @@
 const services = require("./config/services.json");
 const { ping } = require("./services/heartbeat");
 const logger = require("./utils/logger");
+const { calculateSummaryStats } = require("./utils/formatter");
+const { SUCCESS_EXIT_CODE, FAILURE_EXIT_CODE } = require("./config/constants");
 
 const run = async () => {
   logger.printHeader();
-  const startedAt = Date.now();
+  const startTime = Date.now();
 
-  // Execute pings concurrently for optimal speed
+  // Execute pings concurrently for high throughput
   const results = await Promise.all(services.map((service) => ping(service)));
 
+  // Output individual service health cards
   results.forEach(logger.logResult);
 
-  const healthy = results.filter((r) => r.success).length;
-  const failed = results.length - healthy;
+  // Compute summary metrics & render output
+  const totalRuntimeMs = Date.now() - startTime;
+  const stats = calculateSummaryStats(results, totalRuntimeMs);
 
   logger.printFooter();
-  logger.logSummary(results.length, healthy, failed, Date.now() - startedAt);
+  logger.logSummary(stats);
 
-  // Set non-zero exit code if any service fails (Critical for Phase 2 GitHub Actions)
-  if (failed > 0) {
-    process.exitCode = 1;
+  // Signal status code for CI/CD environments
+  if (stats.failed > 0) {
+    process.exitCode = FAILURE_EXIT_CODE;
+  } else {
+    process.exitCode = SUCCESS_EXIT_CODE;
   }
 };
 
 run();
-

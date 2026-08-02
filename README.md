@@ -1,112 +1,121 @@
 # ❤️ Heartbeat Service
 
-A lightweight Node.js heartbeat service that periodically checks the health of multiple web services.
-
-Originally built to keep Render free-tier applications warm, this project can also be used as a simple endpoint monitoring utility.
+A lightweight, production-grade Node.js CLI utility that periodically monitors HTTP service health and keeps Render free-tier applications warm.
 
 ---
 
-## Features
+## 🏗️ Architecture & Component Overview
 
-- Monitor multiple HTTP endpoints
-- Measure response latency
-- Concurrent health checks using `Promise.all()`
-- Clean terminal output
-- Configurable services through JSON
-- GitHub Actions support (every 5 minutes)
-- Discord notifications for failed services (Coming Soon)
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                              src/index.js                              │
+│                      (CLI Application Orchestrator)                   │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+       ┌────────────────────────────┼───────────────────────────┐
+       ▼                            ▼                           ▼
+┌──────────────┐          ┌───────────────────┐       ┌───────────────────┐
+│  config/     │          │    services/      │       │      utils/       │
+│ constants.js │          │   heartbeat.js    │       │  httpClient.js    │
+└──────────────┘          └─────────┬─────────┘       │    logger.js      │
+                                    │                 │   formatter.js    │
+                                    ▼                 └───────────────────┘
+                          ┌───────────────────┐
+                          │ External Endpoint │
+                          └───────────────────┘
+```
+
+### Module Responsibilities
+
+- **`src/config/constants.js`**: Application defaults (`DEFAULT_TIMEOUT`, `USER_AGENT`, exit codes, cold start thresholds, retry rules).
+- **`src/utils/httpClient.js`**: Factory for reusable Axios client instances configured with default headers.
+- **`src/utils/formatter.js`**: Error classifier, latency dynamic formatter, and summary metrics engine.
+- **`src/services/heartbeat.js`**: Core ping logic with retry loop and metric generation.
+- **`src/utils/logger.js`**: Console card renderer and formatted summary table printer.
+- **`src/index.js`**: Concurrent request orchestrator and POSIX exit code handler.
 
 ---
 
-## Example Output
+## 🔄 Execution Flow
+
+```text
+1. Load service endpoints from src/config/services.json
+2. Trigger concurrent HTTP GET requests via Promise.all()
+3. For each service:
+   ├── Execute request via Axios HTTP client
+   ├── Evaluate response latency
+   ├── If transient error (Timeout, DNS, Network, 5xx):
+   │   └── Retry up to 2 times with 2-second delay
+   └── Tag Cold Start if latency > 10,000 ms
+4. Format & render status cards for each service
+5. Aggregate summary stats (Avg Latency, Fastest, Slowest, Success Rate)
+6. Exit process: Exit Code 0 (All Healthy) or Exit Code 1 (Failures)
+```
+
+---
+
+## ⚡ Cold Start Detection
+
+Render free-tier web services enter an idle state after inactivity. Upon receiving a request, spinning up a container can take between 10 to 45 seconds.
+
+- **Cold Start Threshold**: **`10,000 ms`** (`10 seconds`)
+- If request latency exceeds `10,000 ms`, the result card explicitly flags **`Cold Start : Yes`**.
+
+---
+
+## 🔁 Retry Policy
+
+To prevent false alerts caused by transient network blips, `heartbeat-service` implements selective retry logic:
+
+- **Max Retries**: `2` attempts (3 total requests)
+- **Retry Delay**: `2,000 ms` (2 seconds)
+- **Eligible Errors**:
+  - `Timeout` (`ECONNABORTED`, `ETIMEDOUT`)
+  - `DNS Failure` (`ENOTFOUND`)
+  - `Network Dropouts` (`ECONNRESET`, `ECONNREFUSED`, `ERR_NETWORK`)
+  - `Server Errors` (`HTTP 5xx`)
+- **Non-Retryable Errors**:
+  - `Client Errors` (`HTTP 4xx` e.g., 404 Not Found, 401 Unauthorized, 403 Forbidden).
+
+---
+
+## 🖥️ Sample Terminal Output
 
 ```text
 🚀 Heartbeat Service Started
 
 ────────────────────────────────────────────────────────
-
 🟢 Portfolio
-URL      : https://landing-page-nrjv.onrender.com
-Status   : 200
-Latency  : 294 ms
+URL          : https://landing-page-nrjv.onrender.com
+Status       : 200
+Latency      : 294 ms
+Cold Start   : No
 
 🟢 Three-Way Match Engine Frontend
-URL      : https://three-way-match-engine-frontend.onrender.com
-Status   : 200
-Latency  : 168 ms
-
-🟢 Three-Way Match Engine Backend
-URL      : https://three-way-match-engine-backend.onrender.com
-Status   : 200
-Latency  : 107 ms
+URL          : https://three-way-match-engine-frontend.onrender.com
+Status       : 200
+Latency      : 12.4 sec
+Cold Start   : Yes
 
 ────────────────────────────────────────────────────────
 
 Summary
 
-Total   : 3
-Healthy : 3
-Failed  : 0
-
-Completed in 295 ms
+Total            : 2
+Healthy          : 2
+Failed           : 0
+Success Rate     : 100.0%
+Average Latency  : 6.3 sec
+Fastest          : Portfolio (294 ms)
+Slowest          : Three-Way Match Engine Frontend (12.4 sec)
+Total Runtime    : 12.4 sec
 ```
 
 ---
 
-## Project Structure
+## ⚙️ Configuration & Installation
 
-```
-heartbeat-service
-│
-├── src
-│   ├── config
-│   │   └── services.json
-│   │
-│   ├── services
-│   │   └── heartbeat.js
-│   │
-│   ├── utils
-│   │   └── logger.js
-│   │
-│   └── index.js
-│
-├── package.json
-└── README.md
-```
-
----
-
-## Installation
-
-Clone the repository
-
-```bash
-git clone https://github.com/namespace7/heartbeat-service.git
-```
-
-Install dependencies
-
-```bash
-npm install
-```
-
-Run the heartbeat
-
-```bash
-npm start
-```
-
----
-
-## Configuration
-
-Configure services in
-
-```
-src/config/services.json
-```
-
-Example
+### Configure Endpoints (`src/config/services.json`)
 
 ```json
 [
@@ -114,62 +123,50 @@ Example
     "name": "Portfolio",
     "url": "https://landing-page-nrjv.onrender.com",
     "timeout": 60000
-  },
-  {
-    "name": "Three-Way Match Engine Frontend",
-    "url": "https://three-way-match-engine-frontend.onrender.com",
-    "timeout": 60000
-  },
-  {
-    "name": "Three-Way Match Engine Backend",
-    "url": "https://three-way-match-engine-backend.onrender.com",
-    "timeout": 60000
   }
 ]
 ```
 
-> **Note:** The default request timeout (`REQUEST_TIMEOUT`) is intentionally set to 60 seconds (60,000 ms) to accommodate controlled experimentation with Render free-tier cold starts, which can occasionally take up to 30–50 seconds to spin up from an idle state.
+### Installation & Execution
+
+```bash
+git clone https://github.com/yashwantkumar/heartbeat-service.git
+cd heartbeat-service
+npm install
+npm start
+```
 
 ---
 
-## Tech Stack
+## 🚀 GitHub Actions Integration
 
-- Node.js
-- Axios
-- GitHub Actions (Scheduled Workflow)
-- Discord Webhooks (Upcoming)
+The repository includes a GitHub Actions scheduled workflow (`.github/workflows/heartbeat.yml`) that executes every 5 minutes:
 
----
+```yaml
+name: Heartbeat Check
 
-## Roadmap
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
-### Phase 1 ✅
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm start
+```
 
-- Multiple service monitoring
-- Concurrent requests
-- Response latency measurement
-- Clean CLI logging
-
-### Phase 2 🚧
-
-- GitHub Actions
-- Scheduled execution every 5 minutes
-
-### Phase 3 🚧
-
-- Discord notifications
-- Alert only for unhealthy services
-
----
-
-## Why this project?
-
-Render's free-tier web services become inactive after a period of inactivity, causing cold-start delays for the next request.
-
-This project periodically sends lightweight HTTP requests to monitored services, helping reduce cold starts while also providing a simple health monitoring utility.
+- When all services pass, `npm start` exits with `0` (Workflow passes).
+- If any service fails, `npm start` exits with `1` (Workflow fails and triggers GitHub notification).
 
 ---
 
-## License
+## 📄 License
 
-MIT
+[MIT](LICENSE) © 2026 Yashwant Kumar

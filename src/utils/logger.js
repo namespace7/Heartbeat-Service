@@ -1,8 +1,9 @@
-const LINE =
-  "────────────────────────────────────────────────────────";
+const { formatLatency } = require("./formatter");
+
+const LINE = "────────────────────────────────────────────────────────";
 
 const printHeader = () => {
-  console.log("\n Heartbeat Service Started\n");
+  console.log("\n🚀 Heartbeat Service Started\n");
   console.log(LINE);
 };
 
@@ -11,28 +12,36 @@ const printFooter = () => {
 };
 
 const logResult = (result) => {
+  const coldStartStr = result.isColdStart ? "Yes" : "No";
+
   if (result.success) {
-    console.log(`🟢 ${result.name}`);
-    console.log(`URL      : ${result.url}`);
-    console.log(`Status   : ${result.status}`);
-    console.log(`Latency  : ${result.latency} ms`);
+    console.log(`🟢 ${result.service}`);
+    console.log(`URL          : ${result.url}`);
+    console.log(`Status       : ${result.status}`);
+    console.log(`Latency      : ${formatLatency(result.latency)}`);
+    console.log(`Cold Start   : ${coldStartStr}`);
   } else {
-    console.log(`🔴 ${result.name}`);
-    console.log(`URL      : ${result.url}`);
-    console.log(`Message  : ${result.error.message}`);
-    console.log(`Code     : ${result.error.code}`);
-    console.log(`Status   : ${result.error.status}`);
-    console.log(`Timeout  : ${result.error.timeout} ms`);
+    console.log(`🔴 ${result.service}`);
+    console.log(`URL          : ${result.url}`);
+    console.log(`Message      : ${result.errorMessage}`);
+    console.log(`Code         : ${result.errorCode}`);
+    console.log(`Status       : ${result.status}`);
+    console.log(`Timeout      : ${result.timeout} ms`);
+    console.log(`Cold Start   : ${coldStartStr}`);
   }
   console.log("");
 };
 
-const logSummary = (total, healthy, failed, duration) => {
+const logSummary = (stats) => {
   console.log("\nSummary\n");
-  console.log(`Total   : ${total}`);
-  console.log(`Healthy : ${healthy}`);
-  console.log(`Failed  : ${failed}`);
-  console.log(`\nCompleted in ${duration} ms`);
+  console.log(`Total            : ${stats.total}`);
+  console.log(`Healthy          : ${stats.healthy}`);
+  console.log(`Failed           : ${stats.failed}`);
+  console.log(`Success Rate     : ${stats.successRate}`);
+  console.log(`Average Latency  : ${stats.avgLatency}`);
+  console.log(`Fastest          : ${stats.fastest}`);
+  console.log(`Slowest          : ${stats.slowest}`);
+  console.log(`Total Runtime    : ${stats.totalRuntime}`);
 };
 
 module.exports = {
